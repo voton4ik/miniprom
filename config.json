@@ -1,0 +1,10 @@
+{
+  "listen_addr": ":9099",
+  "scrape_interval": "5s",
+  "retention": "1h",
+  "timeout": "3s",
+  "targets": [
+    { "job": "demo", "url": "http://localhost:9100/metrics" },
+    { "job": "miniprom", "url": "http://localhost:9099/metrics" }
+  ]
+}
