@@ -3,10 +3,11 @@ package main
 import (
 	"context"
 	"flag"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -20,9 +21,12 @@ func main() {
 	configPath := flag.String("config", "config.json", "путь к файлу конфигурации")
 	flag.Parse()
 
+	setupLogger(os.Getenv("MINIPROM_LOG_LEVEL"))
+
 	cfg, err := config.Load(*configPath)
 	if err != nil {
-		log.Fatalf("конфигурация: %v", err)
+		slog.Error("не удалось загрузить конфигурацию", "error", err)
+		os.Exit(1)
 	}
 
 	store := storage.New(cfg.Retention.Duration)
@@ -41,23 +45,41 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("miniprom слушает на %s", cfg.ListenAddr)
-		log.Printf("интервал сбора: %s, хранение: %s, целей: %d",
-			cfg.ScrapeInterval.Duration, cfg.Retention.Duration, len(cfg.Targets))
+		slog.Info("miniprom запущен",
+			"addr", cfg.ListenAddr,
+			"scrape_interval", cfg.ScrapeInterval.Duration,
+			"retention", cfg.Retention.Duration,
+			"targets", len(cfg.Targets))
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("сервер: %v", err)
+			slog.Error("сбой http-сервера", "error", err)
+			os.Exit(1)
 		}
 	}()
 
 	<-ctx.Done()
-	log.Println("получен сигнал завершения, останавливаюсь...")
-	close(stopCompaction)
+	slog.Info("получен сигнал завершения, останавливаюсь")
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer shutdownCancel()
 	if err := srv.Shutdown(shutdownCtx); err != nil {
-		log.Printf("ошибка остановки: %v", err)
-		os.Exit(1)
+		slog.Error("http-сервер не остановился штатно", "error", err)
 	}
-	log.Println("остановлено")
+
+	close(stopCompaction)
+	manager.Wait()
+	slog.Info("остановлено")
+}
+
+func setupLogger(level string) {
+	lvl := slog.LevelInfo
+	switch strings.ToLower(strings.TrimSpace(level)) {
+	case "debug":
+		lvl = slog.LevelDebug
+	case "warn", "warning":
+		lvl = slog.LevelWarn
+	case "error":
+		lvl = slog.LevelError
+	}
+	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: lvl})
+	slog.SetDefault(slog.New(handler))
 }

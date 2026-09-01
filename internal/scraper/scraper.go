@@ -2,6 +2,7 @@ package scraper
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"sort"
 	"sync"
@@ -28,6 +29,8 @@ type Manager struct {
 	interval time.Duration
 	client   *http.Client
 
+	wg sync.WaitGroup
+
 	mu    sync.RWMutex
 	state map[string]*TargetState
 }
@@ -48,11 +51,28 @@ func New(store *storage.Storage, cfg *config.Config) *Manager {
 
 func (m *Manager) Start(ctx context.Context) {
 	for _, t := range m.targets {
+		m.wg.Add(1)
 		go m.loop(ctx, t)
 	}
 }
 
+func (m *Manager) Wait() {
+	m.wg.Wait()
+}
+
+func (m *Manager) Ready() bool {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	for _, st := range m.state {
+		if !st.LastScrape.IsZero() {
+			return true
+		}
+	}
+	return false
+}
+
 func (m *Manager) loop(ctx context.Context, t config.Target) {
+	defer m.wg.Done()
 	m.scrape(ctx, t)
 	ticker := time.NewTicker(m.interval)
 	defer ticker.Stop()
@@ -88,8 +108,10 @@ func (m *Manager) scrape(ctx context.Context, t config.Target) {
 			labels := enrich(metric.Labels, t)
 			m.store.Add(metric.Name, labels, metric.Value, ts)
 		}
+		slog.Debug("сбор завершён", "job", t.Job, "target", t.URL, "metrics", len(metrics), "duration", elapsed)
 	} else {
 		st.LastError = err.Error()
+		slog.Warn("не удалось опросить цель", "job", t.Job, "target", t.URL, "error", err)
 	}
 
 	m.store.Add("up", map[string]string{"job": t.Job, "instance": t.URL}, up, ts)
