@@ -65,3 +65,14 @@ func TestParseInvalid(t *testing.T) {
 		t.Fatal("ожидалась ошибка для строки без значения")
 	}
 }
+
+func TestParseEmptyAndComments(t *testing.T) {
+	input := "# HELP foo bar\n# TYPE foo counter\n\n   \n"
+	metrics, err := Parse(strings.NewReader(input))
+	if err != nil {
+		t.Fatalf("ошибка: %v", err)
+	}
+	if len(metrics) != 0 {
+		t.Fatalf("ожидалось 0 метрик, получено %d", len(metrics))
+	}
+}

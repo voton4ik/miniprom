@@ -1,6 +1,8 @@
 package storage
 
 import (
+	"strconv"
+	"sync"
 	"testing"
 	"time"
 )
@@ -51,5 +53,39 @@ func TestCompaction(t *testing.T) {
 	}
 	if got := s.Latest("fresh", nil); len(got) != 1 {
 		t.Errorf("свежая серия должна остаться")
+	}
+}
+
+func TestConcurrentAccess(t *testing.T) {
+	s := New(time.Hour)
+	var wg sync.WaitGroup
+	now := time.Now()
+
+	for w := 0; w < 8; w++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			host := strconv.Itoa(id)
+			for i := 0; i < 500; i++ {
+				s.Add("load", map[string]string{"host": host}, float64(i), now)
+			}
+		}(w)
+	}
+
+	for r := 0; r < 4; r++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := 0; i < 500; i++ {
+				s.Latest("load", nil)
+				s.Names()
+			}
+		}()
+	}
+
+	wg.Wait()
+
+	if got := s.Latest("load", nil); len(got) != 8 {
+		t.Fatalf("ожидалось 8 серий, получено %d", len(got))
 	}
 }
