@@ -1,0 +1,18 @@
+version: "2"
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+  settings:
+    errcheck:
+      exclude-functions:
+        - (net/http.ResponseWriter).Write
+        - (*encoding/json.Encoder).Encode
+        - (io.ReadCloser).Close
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
