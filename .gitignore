@@ -4,4 +4,6 @@
 *.exe
 *.out
 *.test
+coverage.out
+.env
 .DS_Store
