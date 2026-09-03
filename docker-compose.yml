@@ -1,0 +1,16 @@
+services:
+  demo:
+    build:
+      context: .
+      target: exporter
+    ports:
+      - "9100:9100"
+
+  miniprom:
+    build:
+      context: .
+      target: miniprom
+    ports:
+      - "9099:9099"
+    depends_on:
+      - demo
