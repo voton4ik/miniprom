@@ -1,7 +1,7 @@
 # miniprom
 
 ![CI](https://github.com/voton4ik/miniprom/actions/workflows/ci.yml/badge.svg)
-![Go](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white)
+![Go](https://img.shields.io/badge/Go-1.24-00ADD8?logo=go&logoColor=white)
 
 Маленький сборщик метрик в духе Prometheus. Ходит по вашим сервисам, забирает
 метрики в текстовом формате Prometheus, складывает их в память как временные ряды
@@ -60,7 +60,7 @@ docker compose up --build
 
 ### Локально
 
-Нужен Go 1.26 или новее.
+Нужен Go 1.24 или новее.
 
 В одном терминале запустите демо-экспортёр — сервис, который отдаёт несколько
 меняющихся во времени метрик:
